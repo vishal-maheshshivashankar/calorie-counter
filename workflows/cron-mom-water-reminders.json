@@ -57,7 +57,7 @@
     },
     {
       "parameters": {
-        "chatId": "={{ $env.MOM_TELEGRAM_CHAT_ID }}",
+        "chatId": "8776066330",
         "text": "={{ $json.message }}",
         "additionalFields": {
           "parse_mode": "HTML",
@@ -87,5 +87,5 @@
     "callerPolicy": "workflowsFromSameOwner"
   },
   "tags": [{ "name": "mitra-mom" }],
-  "active": false
+  "active": true
 }
