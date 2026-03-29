@@ -1,0 +1,139 @@
+{
+  "name": "Mom - Water Reminders (Hourly)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 8-22 * * *"
+            }
+          ]
+        }
+      },
+      "id": "hourly-schedule",
+      "name": "Hourly 8AM-10PM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $env.MOM_SPREADSHEET_ID }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Water"
+        },
+        "options": {},
+        "authentication": "serviceAccount"
+      },
+      "id": "read-water",
+      "name": "Read Water Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "fa9414e1-1db7-446e-94a2-2ffeb782e5d6",
+          "name": "Mitra Google SA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst istOffset = 5.5 * 60 * 60 * 1000;\nconst istNow = new Date(now.getTime() + istOffset);\n\nconst today = istNow.toISOString().split('T')[0];\nconst hour = istNow.getUTCHours();\n\nconst rows = $input.all();\nconst todayTotal = rows\n  .filter(r => r.json.date === today)\n  .reduce((sum, r) => sum + (parseFloat(r.json.ml) || 0), 0);\n\nconst target = 3000;\nconst remaining = target - todayTotal;\nconst hoursLeft = 22 - hour;\n\nconst hoursPassed = Math.max(0, hour - 8);\nconst expectedByNow = Math.round((hoursPassed / 14) * target);\n\nif (todayTotal >= expectedByNow) {\n  return [];\n}\n\nlet msg = `\ud83d\udca7 <b>Water Reminder</b>\\n\\nYou've had ${todayTotal}ml / ${target}ml today.\\n${remaining}ml more in ${hoursLeft} hours.\\n\\n`;\nif (todayTotal === 0) msg += 'Time to start hydrating! \ud83e\udd64';\nelse if (todayTotal < 500) msg += \"You're behind - try to catch up!\";\nelse msg += `Almost there! Just ${remaining}ml more.`;\n\nreturn [{ json: { message: msg, total: todayTotal, target, hour, expectedByNow } }];"
+      },
+      "id": "check-water",
+      "name": "Check Water Progress",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "8776066330",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "appendAttribution": false
+        }
+      },
+      "id": "send-reminder",
+      "name": "Send Water Reminder",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        880,
+        260
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "MOM_TELEGRAM_CRED_ID",
+          "name": "Mom Telegram Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Hourly 8AM-10PM": {
+      "main": [
+        [
+          {
+            "node": "Read Water Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Water Sheet": {
+      "main": [
+        [
+          {
+            "node": "Check Water Progress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Water Progress": {
+      "main": [
+        [
+          {
+            "node": "Send Water Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [
+    {
+      "name": "mitra-mom"
+    }
+  ],
+  "active": true,
+  "id": "Kw4EFe9i4rqpTeI0"
+}
